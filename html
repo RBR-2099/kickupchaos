@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover">
+    <link rel="manifest" href="manifest.json">
+    <title>Embaixadinha Chaos Edition</title>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none; }
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Courier New', monospace; }
+        canvas { background: #1a1a1a; image-rendering: pixelated; width: 100vw; height: 100vh; transition: transform 0.05s; }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Configurações Mobile
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- ESTADO E PERSISTÊNCIA ---
+    let score = 0;
+    let highscore = localStorage.getItem('chaos_highscore') || 0;
+    let gameActive = false;
+    let lastTime = 0;
+    let shakeIntensity = 0;
+
+    // --- ENTIDADES ---
+    const ball = { x: 0, y: 0, vx: 0, vy: 0, radius: 25, gravity: 0.7, color: '#fff' };
+    let obstacles = []; // Bombas e Blocos Multiplicadores
+    let particles = [];
+
+    const narratorQuotes = {
+        hit: ["RECEBA!", "SIMPLESMENTE!", "PURA SORTE!", "OLHA O QUE ELE FEZ!", "MÁQUINA!"],
+        chaos: ["CADÊ A BOLA?!", "TUDO ESCURO!", "MODO LOUCURA!", "TENTA A SORTE!"],
+        fail: ["DÊ A ORDEM!", "QUE FASE!", "LIMITADO!", "APENAS UM MEME!", "JOGA COM O PÉ!", "RAGE QUIT?"]
+    };
+    let currentMessage = "TOQUE PARA O CAOS";
+
+    // --- SISTEMAS ---
+    function vibrate(pattern) { if (navigator.vibrate) navigator.vibrate(pattern); }
+
+    function applyShake(intensity) { shakeIntensity = intensity; }
+
+    function spawnEntity() {
+        if (!gameActive) return;
+        // Spawn de Bombas (Vermelho) ou Blocos (Dourado)
+        if (Math.random() < 0.03) {
+            const isBlock = Math.random() > 0.7;
+            obstacles.push({
+                x: Math.random() * (canvas.width - 60) + 30,
+                y: -50,
+                vy: 4 + (score / 10),
+                w: isBlock ? 60 : 30,
+                h: 30,
+                type: isBlock ? 'block' : 'bomb'
+            });
+        }
+    }
+
+    function resetBall() {
+        ball.x = canvas.width / 2; ball.y = canvas.height / 2;
+        ball.vx = 0; ball.vy = 0;
+    }
+
+    function endGame(msg) {
+        gameActive = false;
+        currentMessage = msg;
+        vibrate([200, 100, 200]);
+        applyShake(20);
+        if (score > highscore) {
+            highscore = score;
+            localStorage.setItem('chaos_highscore', highscore);
+        }
+        // Reinício instantâneo estilo Geometry Dash (opcional: aguardar 1s)
+        setTimeout(() => { if(!gameActive) currentMessage = "TOQUE PARA REVANCHE"; }, 1500);
+    }
+
+    // --- ENGINE PRINCIPAL ---
+    function update(time) {
+        if (gameActive) {
+            ball.vy += ball.gravity;
+            ball.x += ball.vx; ball.y += ball.vy;
+
+            // Paredes
+            if (ball.x < ball.radius || ball.x > canvas.width - ball.radius) ball.vx *= -1;
+            if (ball.y > canvas.height) endGame(narratorQuotes.fail[Math.floor(Math.random()*narratorQuotes.fail.length)]);
+
+            // Obstáculos
+            obstacles.forEach((obs, i) => {
+                obs.y += obs.vy;
+                // Colisão simples AABB
+                if (ball.x > obs.x && ball.x < obs.x + obs.w && ball.y > obs.y && ball.y < obs.y + obs.h) {
+                    if (obs.type === 'bomb') endGame("POW! EXPLODIU!");
+                    else { // Bloco multiplicador
+                        score += 5;
+                        ball.vy = -15;
+                        obstacles.splice(i, 1);
+                        vibrate(50);
+                        applyShake(10);
+                        currentMessage = "COMBO +5!";
+                    }
+                }
+                if (obs.y > canvas.height) obstacles.splice(i, 1);
+            });
+
+            // Chaos Mod (Frequência aumenta com score)
+            if (score > 0 && score % 15 === 0) {
+                ball.color = `hsl(${Math.random()*360}, 100%, 50%)`;
+                if(Math.random() < 0.05) applyShake(5);
+            } else { ball.color = '#fff'; }
+
+            spawnEntity();
+        }
+
+        // Screenshake
+        if (shakeIntensity > 0) {
+            const sx = (Math.random() - 0.5) * shakeIntensity;
+            const sy = (Math.random() - 0.5) * shakeIntensity;
+            canvas.style.transform = `translate(${sx}px, ${sy}px)`;
+            shakeIntensity *= 0.9;
+        } else { canvas.style.transform = `translate(0,0)`; }
+
+        draw();
+        requestAnimationFrame(update);
+    }
+
+    function draw() {
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Grid Retro Background
+        ctx.strokeStyle = '#222';
+        for(let i=0; i<canvas.width; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+
+        // Desenhar Obstáculos
+        obstacles.forEach(obs => {
+            ctx.fillStyle = obs.type === 'bomb' ? '#ff1744' : '#ffc107';
+            ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        });
+
+        // Bola
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2);
+        ctx.fillStyle = ball.color;
+        ctx.fill();
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.stroke();
+
+        // UI
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 40px Courier New';
+        ctx.fillText(score, canvas.width/2, 100);
+        ctx.font = '12px Courier New';
+        ctx.fillText(`BEST: ${highscore}`, canvas.width/2, 130);
+        ctx.font = '18px Courier New';
+        ctx.fillStyle = '#00e676';
+        ctx.fillText(currentMessage, canvas.width/2, 170);
+    }
+
+    // --- INPUT LATÊNCIA ZERO ---
+    function handleInput(e) {
+        e.preventDefault();
+        const touch = e.touches ? e.touches[0] : e;
+        const x = touch.clientX;
+        const y = touch.clientY;
+
+        if (!gameActive) {
+            score = 0; obstacles = []; resetBall(); gameActive = true;
+            vibrate(10); return;
+        }
+
+        const dist = Math.hypot(x - ball.x, y - ball.y);
+        if (dist < ball.radius + 60) {
+            score++;
+            ball.vy = -16;
+            ball.vx = (ball.x - x) * 0.6;
+            vibrate(25);
+            applyShake(3);
+            currentMessage = narratorQuotes.hit[Math.floor(Math.random()*narratorQuotes.hit.length)];
+        }
+    }
+
+    canvas.addEventListener('touchstart', handleInput, {passive: false});
+    canvas.addEventListener('mousedown', handleInput);
+
+    requestAnimationFrame(update);
+</script>
+</body>
+</html>
