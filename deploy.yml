@@ -1,0 +1,34 @@
+name: Deploy Jogo Embaixadinha
+
+on:
+  push:
+    branches: ["main"] # O robô vai trabalhar toda vez que você enviar código para a branch 'main'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # Resolve o aviso de depreciação do Node 20
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload do Jogo
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.' # Sobe todos os arquivos da pasta atual
+
+      - name: Deploy Final
+        id: deployment
+        uses: actions/deploy-pages@v4

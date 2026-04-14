@@ -2,6 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+<<<<<<< HEAD
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover">
     <link rel="manifest" href="manifest.json">
     <title>Embaixadinha Chaos Edition</title>
@@ -193,3 +194,55 @@
 </script>
 </body>
 </html>
+=======
+    <title>Monitor Config v1.0</title>
+    <style>
+        body { background: #0f0f0f; color: #e0e0e0; font-family: 'Inter', sans-serif; display: flex; justify-content: center; padding: 40px; }
+        .card { background: #1a1a1a; padding: 30px; border-radius: 12px; border: 1px solid #333; width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { color: #fff; font-weight: 300; border-left: 4px solid #007bff; padding-left: 15px; }
+        input { width: 100%; padding: 12px; background: #222; border: 1px solid #444; color: #fff; border-radius: 6px; margin: 10px 0; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #007bff; border: none; color: #fff; border-radius: 6px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        button:hover { background: #0056b3; }
+        .app-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #333; font-size: 0.9em; }
+        .remove { color: #ff4d4d; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Softwares em Análise</h2>
+        <input type="text" id="appName" placeholder="Ex: photoshop.exe">
+        <button onclick="addApp()">Adicionar à Lista</button>
+        <div id="appList" style="margin-top: 20px;"></div>
+        <button style="background: #28a745;" onclick="saveConfig()">Salvar no n8n</button>
+    </div>
+
+    <script>
+        let apps = [];
+        const n8n_webhook_config = "SUA_URL_WEBHOOK_N8N_AQUI";
+
+        function addApp() {
+            const name = document.getElementById('appName').value;
+            if (name) { apps.push(name); render(); document.getElementById('appName').value = ''; }
+        }
+
+        function removeApp(index) { apps.splice(index, 1); render(); }
+
+        function render() {
+            const list = document.getElementById('appList');
+            list.innerHTML = apps.map((app, i) => `
+                <div class="app-item">${app} <span class="remove" onclick="removeApp(${i})">remover</span></div>
+            `).join('');
+        }
+
+        async function saveConfig() {
+            await fetch(n8n_webhook_config, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ target_apps: apps })
+            });
+            alert("Configuração atualizada com sucesso!");
+        }
+    </script>
+</body>
+</html>
+>>>>>>> 91e0955 (Iniciando projeto Embaixadinha Chaos e corrigindo Node 24)
